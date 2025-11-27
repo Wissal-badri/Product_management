@@ -1,16 +1,48 @@
-# React + Vite
+# Product Management App (React + Express + MySQL)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project is split into two parts:
+- `src/` — React (Vite) frontend that lets you list, create, edit and delete products.
+- `backend/` — Express API that persists products in a MySQL database.
 
-Currently, two official plugins are available:
+## Prerequisites
+- Node.js 18+
+- MySQL server running locally (or reachable through the network)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 1. Backend setup
+```powershell
+cd backend
+npm install
+copy env.example .env   # edit the file with your DB credentials
+```
 
-## React Compiler
+Create the database and table (one-time):
+```powershell
+mysql -u root -p < database.sql
+# or run the SQL in your favorite GUI
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Start the API (default port `3000`):
+```powershell
+npm run dev   # auto-reload
+# or
+npm start
+```
 
-## Expanding the ESLint configuration
+Test it quickly:
+- http://localhost:3000/api/test
+- http://localhost:3000/api/produits
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 2. Frontend setup
+In another terminal:
+```powershell
+npm install
+npm run dev
+```
+
+The UI is served on http://localhost:5173 by default. It calls the backend at `http://localhost:3000`.  
+If you deploy the backend elsewhere, create a `.env` at the project root with `VITE_API_URL=https://your-api`.
+
+## Troubleshooting
+- Ensure MySQL is running and the credentials in `backend/.env` are correct.
+- If the frontend displays “Impossible de charger les produits”, confirm the backend is reachable at `/api/produits`.
+- Your MySQL schema must be named `product_management` unless you override `DB_NAME` in `.env`.

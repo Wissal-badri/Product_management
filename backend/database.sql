@@ -17,3 +17,4 @@ INSERT INTO produits (name, price, category) VALUES
 ('Smartphone', 499.00, 'Téléphonie'),
 ('Casque Audio', 79.00, 'Accessoires');
 
+

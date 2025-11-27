@@ -23,7 +23,7 @@ const db = mysql.createConnection({
   host: process.env.DB_HOST || 'localhost', 
   user: process.env.DB_USER || 'root', 
   password: process.env.DB_PASSWORD || '', 
-  database: process.env.DB_NAME || 'gestion_produits'
+  database: process.env.DB_NAME || 'product_management'
 }); 
  
 db.connect((err) => { 
@@ -77,63 +77,99 @@ app.get('/api/produits', (req, res) => {
 // POST nouveau produit 
 app.post('/api/produits', (req, res) => {
   console.log('📥 POST /api/produits - Données reçues:', req.body);
-  
+
   const { name, price, category } = req.body;
-  
-  // Validation
-  if (!name || !price || !category) {
-    return res.status(400).json({ 
+
+  // Validation minimale
+  if (!name || price === undefined || price === null || !category) {
+    return res.status(400).json({
       error: 'Données manquantes',
-      details: 'name, price et category sont requis' 
+      details: 'name, price et category sont requis'
     });
   }
-  
-  db.query( 
-    'INSERT INTO produits (name, price, category) VALUES (?, ?, ?)', 
-    [name, price, category], 
-    (err, results) => { 
+
+  const parsedPrice = Number(price);
+  if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+    return res.status(400).json({
+      error: 'Prix invalide',
+      details: 'price doit être un nombre positif'
+    });
+  }
+
+  db.query(
+    'INSERT INTO produits (name, price, category) VALUES (?, ?, ?)',
+    [String(name).trim(), parsedPrice, String(category).trim()],
+    (err, results) => {
       if (err) {
-        console.error("❌ Erreur MySQL:", err);
-        return res.status(500).json({ 
-          error: "Erreur serveur", 
-          details: err.message 
+        console.error("❌ Erreur MySQL (insert):", err);
+        return res.status(500).json({
+          error: "Erreur serveur",
+          details: err.message
         });
       }
-      console.log('✅ Produit ajouté avec ID:', results.insertId);
-      res.json({  
-        id: results.insertId,  
-        name,  
-        price,  
-        category  
-      }); 
-    } 
-  ); 
+
+      const insertId = results.insertId;
+      // Récupérer la ligne insérée pour renvoyer l'objet complet
+      db.query('SELECT * FROM produits WHERE id = ?', [insertId], (err2, rows) => {
+        if (err2) {
+          console.error('❌ Erreur MySQL (select after insert):', err2);
+          return res.status(500).json({
+            error: 'Erreur serveur',
+            details: err2.message
+          });
+        }
+        console.log('✅ Produit ajouté avec ID:', insertId);
+        res.status(201).json(rows[0]);
+      });
+    }
+  );
 }); 
 
 // PUT modifier produit 
 app.put('/api/produits/:id', (req, res) => {
   console.log(`📥 PUT /api/produits/${req.params.id} - Données:`, req.body);
-  
-  const { name, price, category } = req.body; 
-  
-  db.query( 
-    'UPDATE produits SET name=?, price=?, category=? WHERE id=?', 
-    [name, price, category, req.params.id], 
-    (err, results) => { 
+  const { name, price, category } = req.body;
+  if (!name || price === undefined || price === null || !category) {
+    return res.status(400).json({
+      error: 'Données manquantes',
+      details: 'name, price et category sont requis'
+    });
+  }
+
+  const parsedPrice = Number(price);
+  if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+    return res.status(400).json({
+      error: 'Prix invalide',
+      details: 'price doit être un nombre positif'
+    });
+  }
+
+  db.query(
+    'UPDATE produits SET name=?, price=?, category=? WHERE id=?',
+    [String(name).trim(), parsedPrice, String(category).trim(), req.params.id],
+    (err, results) => {
       if (err) {
-        console.error("❌ Erreur MySQL:", err);
-        return res.status(500).json({ 
-          error: "Erreur serveur", 
-          details: err.message 
+        console.error("❌ Erreur MySQL (update):", err);
+        return res.status(500).json({
+          error: "Erreur serveur",
+          details: err.message
         });
       }
-      console.log('✅ Produit modifié, lignes affectées:', results.affectedRows);
-      res.json({ 
-        message: 'Produit modifié',
-        affectedRows: results.affectedRows 
-      }); 
-    } 
-  ); 
+
+      if (results.affectedRows === 0) {
+        return res.status(404).json({ error: 'Produit non trouvé' });
+      }
+
+      // Retourner l'enregistrement mis à jour
+      db.query('SELECT * FROM produits WHERE id = ?', [req.params.id], (err2, rows) => {
+        if (err2) {
+          console.error('❌ Erreur MySQL (select after update):', err2);
+          return res.status(500).json({ error: 'Erreur serveur', details: err2.message });
+        }
+        res.json(rows[0]);
+      });
+    }
+  );
 }); 
 
 // DELETE produit 
