@@ -12,6 +12,7 @@ export default function ListProduits() {
   const [formValues, setFormValues] = useState({ name: '', price: '', category: '' })
   const [error, setError] = useState(null)
   const [errorAlert, setErrorAlert] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null, name: '' })
 
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -104,34 +105,37 @@ export default function ListProduits() {
   }
 
   const handleDelete = (id) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) return
-
-    ;(async () => {
-      setError(null)
-      try {
-        await axios.delete(`${API_BASE}/api/produits/${id}`)
-        setItems((prev) => prev.filter(item => item.id !== id))
-      } catch (err) {
-        console.error('Erreur delete', err)
-        
-        // Construire un message d'erreur détaillé
-        let errorMessage = 'Impossible de supprimer le produit.'
-        if (err.response?.data?.error) {
-          errorMessage = err.response.data.error
-          if (err.response.data.details) {
-            errorMessage += ' — ' + err.response.data.details
-          }
-        } else if (err.response?.status === 0 || err.message === 'Network Error') {
-          errorMessage = '⚠️ Impossible de contacter le serveur. Vérifiez que le backend est démarré.'
-        } else if (err.message) {
-          errorMessage = err.message
-        }
-        
-        setError(errorMessage)
-        setErrorAlert(errorMessage)
-      }
-    })()
+    // open custom confirm popup instead of native confirm
+    const prod = items.find((p) => p.id === id)
+    setConfirmDelete({ open: true, id, name: prod?.name || '' })
   }
+
+  const performDelete = async () => {
+    const id = confirmDelete.id
+    setConfirmDelete({ open: false, id: null, name: '' })
+    setError(null)
+    try {
+      await axios.delete(`${API_BASE}/api/produits/${id}`)
+      setItems((prev) => prev.filter((item) => item.id !== id))
+    } catch (err) {
+      console.error('Erreur delete', err)
+      let errorMessage = 'Impossible de supprimer le produit.'
+      if (err.response?.data?.error) {
+        errorMessage = err.response.data.error
+        if (err.response.data.details) {
+          errorMessage += ' — ' + err.response.data.details
+        }
+      } else if (err.response?.status === 0 || err.message === 'Network Error') {
+        errorMessage = '⚠️ Impossible de contacter le serveur. Vérifiez que le backend est démarré.'
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      setError(errorMessage)
+      setErrorAlert(errorMessage)
+    }
+  }
+
+  const cancelDelete = () => setConfirmDelete({ open: false, id: null, name: '' })
 
   const handleEdit = (product) => {
     setFormValues({
@@ -315,29 +319,38 @@ export default function ListProduits() {
 
       {/* Error Alert Modal */}
       {errorAlert && (
-        <div className="modal-backdrop" onClick={() => setErrorAlert(null)}>
-          <div className="error-alert-content" onClick={(e) => e.stopPropagation()}>
-            <div className="error-alert-header">
-              <span className="error-alert-icon">⚠️</span>
-              <h3 className="error-alert-title">Erreur</h3>
-              <button
-                className="error-alert-close"
-                onClick={() => setErrorAlert(null)}
-                aria-label="Fermer"
-              >
-                ✕
-              </button>
+        <div className="popup-backdrop" onClick={() => setErrorAlert(null)}>
+          <div className="popup-card" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-live="assertive">
+            <div className="popup-header">
+              <div className="popup-icon">⚠️</div>
+              <h3 className="popup-title">Erreur</h3>
+              <button className="popup-close" onClick={() => setErrorAlert(null)} aria-label="Fermer">✕</button>
             </div>
-            <div className="error-alert-body">
-              <p className="error-alert-message">{errorAlert}</p>
+            <div className="popup-body">
+              <p>{errorAlert}</p>
             </div>
-            <div className="error-alert-footer">
-              <button
-                className="btn-primary"
-                onClick={() => setErrorAlert(null)}
-              >
-                Fermer
-              </button>
+            <div className="popup-actions">
+              <button className="btn-cancel" onClick={() => setErrorAlert(null)}>Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm delete popup */}
+      {confirmDelete.open && (
+        <div className="popup-backdrop" onClick={cancelDelete} role="dialog" aria-modal="true">
+          <div className="popup-card" onClick={(e) => e.stopPropagation()}>
+            <div className="popup-header">
+              <div className="popup-icon">🗑️</div>
+              <h3 className="popup-title">Confirmer la suppression</h3>
+              <button className="popup-close" onClick={cancelDelete} aria-label="Fermer">✕</button>
+            </div>
+            <div className="popup-body">
+              Êtes-vous sûr de vouloir supprimer <strong>{confirmDelete.name || 'ce produit'}</strong> ?
+            </div>
+            <div className="popup-actions">
+              <button className="btn-cancel" onClick={cancelDelete}>Annuler</button>
+              <button className="btn-confirm" onClick={performDelete}>Supprimer</button>
             </div>
           </div>
         </div>
